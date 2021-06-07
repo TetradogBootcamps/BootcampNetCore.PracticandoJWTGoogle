@@ -23,5 +23,10 @@ namespace GoogleLoginToken
             modelBuilder.Entity<Permiso>().HasMany(u => u.Usuarios).WithOne(p => p.Permiso);
         }
 
+        public bool ExistUser(UserInfo userInfoAux)
+        {
+            string email = userInfoAux.Email.ToLower();
+            return Users.Select(u => u.Email).Any(emailUser => emailUser.ToLower().Equals(email));
+        }
     }
 }

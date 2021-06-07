@@ -63,15 +63,7 @@ namespace GoogleLoginToken
                                         claims, expires: Equals(expiraToken, default(DateTime)) ? DefaultExpireTokenDate : expiraToken,
                                         signingCredentials: signIn);
         }
-        public override bool Equals(object obj)
-        {
-            const int EQUALS = 0;
-            UserInfo other = obj as UserInfo;
-            bool equals=!Equals(other,default);
-            if (equals)
-                equals = String.Compare(Email, other.Email,true)==EQUALS;
-            return equals;
-        }
+
     }
 
     //de momento no se si lo usaré

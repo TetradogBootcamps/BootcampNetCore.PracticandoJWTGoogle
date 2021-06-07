@@ -45,7 +45,7 @@ namespace GoogleLoginToken.Controllers
             if (!Equals(googleResult.Principal, default))
             {
                 userInfoAux = new UserInfo(googleResult.Principal);
-                if (!Context.Users.Any(user => user.Equals(userInfoAux)))
+                if (!Context.ExistUser(userInfoAux))
                 { 
                     //no existe pues lo añado
                     try
