@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -11,22 +12,26 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Threading.Tasks;
+using GoogleLoginToken.GestionPermisos;
+using Microsoft.AspNetCore.Http;
 
 namespace GoogleLoginToken.Controllers
 {
-    [AllowAnonymous, Route("api/[controller]"),ApiController]
+    [AllowAnonymous, Route("[controller]"),ApiController]
     public class AccountController : Controller
     {
         IConfiguration Configuration { get; set; }
         LoginContext Context { get; set; }
+
         public AccountController(IConfiguration config,LoginContext context)
         {
             Configuration = config;
             Context = context;
+           
         }
 
         [HttpGet]
-        [Route("google-login")]
+        [Route("login")]
         public IActionResult GoogleLogin()
         {
             var properties = new AuthenticationProperties { RedirectUri = Url.Action(nameof(GetToken)) };
@@ -71,6 +76,119 @@ namespace GoogleLoginToken.Controllers
             return result;
 
          
+        }
+
+
+        [HttpPost]
+        [Route("permisos/{int:idUsuario}/{nombrePermiso}")]
+        [Authorize(Policy = AdminRequirement.POLICITY)]
+        public async Task<IActionResult> SetPermiso(int idUsuario,string nombrePermiso)
+        {
+            UserInfo grantedBy;
+            UserPermiso userPermiso;
+            IActionResult result;
+            Permiso permiso;
+            UserInfo user =await Context.FindAsync<UserInfo>(idUsuario);
+            
+            if (!Equals(user, default(UserInfo))){
+                nombrePermiso = nombrePermiso.ToLower();
+                permiso = Context.Permisos.Where(p=>Equals(p.Name,nombrePermiso)).FirstOrDefault();
+                if (!Equals(permiso, default(Permiso)))
+                {
+                    if (permiso.CanAdd)
+                    {
+                        grantedBy =Context.GetUserWithEmailOrDefault(new UserInfo(HttpContext.User).Email);//aqui leo el usuario admin
+                        if (!Equals(grantedBy,default(UserInfo))&&grantedBy.IsAdmin)
+                        {
+                            userPermiso = user.Permisos.Where(p => Equals(p.Permiso.Name, nombrePermiso)).FirstOrDefault();
+                            if (Equals(user,default(UserPermiso)))
+                            {
+                                userPermiso = new UserPermiso(user, permiso, grantedBy);
+                                Context.Add(userPermiso);
+                                user.Permisos.Add(userPermiso);
+
+                            }
+                            else 
+                            {
+                                userPermiso.SetGranted(grantedBy);
+                            }
+                            await Context.SaveChangesAsync();
+                            result = Ok(user);
+                        }
+                        else
+                        {
+                            result = StatusCode(StatusCodes.Status403Forbidden);
+                        }
+                    }
+                    else
+                    {
+                        result = StatusCode(StatusCodes.Status416RangeNotSatisfiable);
+                    }
+                }
+                else
+                {
+                    result = NotFound();
+                }
+            }
+            else
+            {
+                result = NotFound();
+            }
+            return result;
+        }
+
+
+        [HttpDelete]
+        [Route("permisos/{int:idUsuario}/{nombrePermiso}")]
+        [Authorize(Policy = AdminRequirement.POLICITY)]
+        public async Task<IActionResult> UnsetPermiso(int idUsuario, string nombrePermiso)
+        {
+            UserInfo revokedBy;
+            UserPermiso userPermiso;
+            IActionResult result;
+            Permiso permiso;
+            UserInfo user = await Context.FindAsync<UserInfo>(idUsuario);
+
+            if (!Equals(user, default(UserInfo)))
+            {
+                nombrePermiso = nombrePermiso.ToLower();
+                permiso = Context.Permisos.Where(p => Equals(p.Name, nombrePermiso)).FirstOrDefault();
+                if (!Equals(permiso, default(Permiso)))
+                {
+                    if (permiso.CanRemove)
+                    {
+                        revokedBy = Context.GetUserWithEmailOrDefault(new UserInfo(HttpContext.User).Email);//aqui leo el usuario admin
+                        if (!Equals(revokedBy, default(UserInfo)))
+                        {
+                            userPermiso = user.Permisos.Where(p => Equals(p.Permiso.Name, nombrePermiso)).FirstOrDefault();
+                            if (!Equals(userPermiso,default(UserPermiso)) && userPermiso.IsActive)
+                            {
+
+                                userPermiso.SetRevoked(revokedBy);
+                                await Context.SaveChangesAsync();
+                            }
+                            result = Ok(user);
+                        }
+                        else
+                        {
+                            result = StatusCode(StatusCodes.Status403Forbidden);
+                        }
+                    }
+                    else
+                    {
+                        result = StatusCode(StatusCodes.Status416RangeNotSatisfiable);
+                    }
+                }
+                else
+                {
+                    result = NotFound();
+                }
+            }
+            else
+            {
+                result = NotFound();
+            }
+            return result;
         }
 
     }

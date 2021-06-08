@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -15,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using GoogleLoginToken.GestionPermisos;
 
 namespace GoogleLoginToken
 {
@@ -23,14 +25,28 @@ namespace GoogleLoginToken
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
+            MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
         }
 
         public IConfiguration Configuration { get; }
+        public string MyAllowSpecificOrigins { get; set; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddCors(options =>
+            {
+                options.AddPolicy(MyAllowSpecificOrigins,
+                builder =>
+                {
+                    builder.AllowAnyOrigin()
+                    //.WithOrigins("http://localhost:44322"
 
+                    //                    )
+                                        .AllowAnyHeader()
+                                        .AllowAnyMethod();
+                });
+            });
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {
@@ -65,7 +81,16 @@ namespace GoogleLoginToken
                     IssuerSigningKey=new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
                 };
             });
-           
+            services.AddHttpContextAccessor();
+            //permisos
+            // Add custom authorization handlers
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy(AdminRequirement.POLICITY, policy => policy.Requirements.Add(new AdminRequirement()));
+            });
+
+            services.AddSingleton<IAuthorizationHandler, AdminAuthorizationHandler>();
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -76,12 +101,12 @@ namespace GoogleLoginToken
                 app.UseDeveloperExceptionPage();
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "GoogleLoginToken v1"));
+                app.UseCors(MyAllowSpecificOrigins);
             }
 
-            app.UseHttpsRedirection();
-
+     
             app.UseRouting();
-
+            app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();
 

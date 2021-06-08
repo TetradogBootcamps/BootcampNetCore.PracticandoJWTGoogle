@@ -43,6 +43,7 @@ namespace GoogleLoginToken
         public IList<UserPermiso> Permisos { get; set; }
 
         public bool IsValidated => IdValidador.HasValue;
+        public bool IsAdmin => Permisos.Any(p => Equals(p.Permiso.Name, Permiso.ADMIN));
 
         public JwtSecurityToken GetToken(IConfiguration configuration,DateTime expiraToken=default(DateTime))
         {
