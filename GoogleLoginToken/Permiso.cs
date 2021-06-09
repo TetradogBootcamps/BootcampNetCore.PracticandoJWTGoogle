@@ -6,8 +6,14 @@ namespace GoogleLoginToken
 {
     public class Permiso
     {
-        public const string ADMIN = "Admin";
-
+        public const string ADMIN = "admin";
+        public const string MOD = "mod";
+        public static readonly string[] CanValidate = { ADMIN, MOD };
+        /// <summary>
+        /// Aqui solo estan los que aparte del Admin pueden tocar los permisos que nameof(OnlyAdminCanSet)=false
+        /// </summary>
+        public static readonly string[] CanSetPermiso = { MOD };
+        public Permiso() => Usuarios = new List<UserPermiso>();
         public int Id { get; set; }
         [Required]
         public string Name { get; set; }
@@ -18,7 +24,11 @@ namespace GoogleLoginToken
 
         public int Maximum { get; set; }
         public IList<UserPermiso> Usuarios { get; set; }
-        public bool CanAdd =>Equals(Usuarios,default(IList<UserPermiso>)) || Usuarios.Count < Maximum;
-        public bool CanRemove=> Equals(Usuarios, default(IList<UserPermiso>)) || Usuarios.Count > Minimum;
+
+        public override string ToString()
+        {
+            return Name;
+        }
+
     }
 }

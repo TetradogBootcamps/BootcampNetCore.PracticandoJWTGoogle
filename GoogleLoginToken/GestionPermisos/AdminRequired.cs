@@ -15,14 +15,14 @@ namespace GoogleLoginToken.GestionPermisos
         protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, AdminRequirement requirement)
         {
             const string CLAIMTYPE = "email";
-            const string CLAIMISSUER = "http://localhost:5000/";
+
 
             Claim claim;
             Task result=Task.CompletedTask;
             // Bail out if the office number claim isn't present
-            if (context.User.HasClaim(c => c.Issuer == CLAIMISSUER && c.Type == CLAIMTYPE))
+            if (context.User.HasClaim(c =>  c.Type == CLAIMTYPE))
             {
-                claim = context.User.FindFirst(c => c.Issuer == CLAIMISSUER && c.Type == CLAIMTYPE);
+                claim = context.User.FindFirst(c => c.Type == CLAIMTYPE);
                 if (!Equals(claim, default(Claim)))
                 {
 

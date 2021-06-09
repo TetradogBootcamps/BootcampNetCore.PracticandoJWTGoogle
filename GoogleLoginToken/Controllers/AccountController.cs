@@ -17,17 +17,32 @@ using Microsoft.AspNetCore.Http;
 
 namespace GoogleLoginToken.Controllers
 {
-    [AllowAnonymous, Route("[controller]"),ApiController]
+    [AllowAnonymous, Route("[controller]"), ApiController]
     public class AccountController : Controller
     {
         IConfiguration Configuration { get; set; }
         LoginContext Context { get; set; }
 
-        public AccountController(IConfiguration config,LoginContext context)
+        public AccountController(IConfiguration config, LoginContext context)
         {
             Configuration = config;
             Context = context;
-           
+
+        }
+        [HttpGet]
+        [Route("")]
+        [Authorize]
+        public IActionResult GetUser()
+        {
+            IActionResult result;
+            UserInfo user;
+            if (HttpContext.User.Identity.IsAuthenticated)
+            {
+                user = Context.GetUserWithEmailOrDefault(UserInfo.GetEmailFromHttpContext(HttpContext));
+                result = Ok(new UserInfoDto(user, Context.GetPermisos(user)));//aqui leo el usuario admin
+            }
+            else result = Unauthorized();
+            return result;
         }
 
         [HttpGet]
@@ -46,12 +61,12 @@ namespace GoogleLoginToken.Controllers
             UserInfo userInfoAux;
             JwtSecurityToken token;
             AuthenticateResult googleResult = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            
-            if (!Equals(googleResult.Principal, default))
+
+            if (googleResult.Succeeded)
             {
                 userInfoAux = new UserInfo(googleResult.Principal);
                 if (!Context.ExistUser(userInfoAux))
-                { 
+                {
                     //no existe pues lo añado
                     try
                     {
@@ -71,18 +86,18 @@ namespace GoogleLoginToken.Controllers
             }
             else
             {
-                result = BadRequest();
+                result = Unauthorized();
             }
             return result;
 
-         
+
         }
 
-
+        [Authorize(Policy = AdminRequirement.POLICITY)]
         [HttpPost]
         [Route("permisos/{idUsuario:int}/{nombrePermiso}")]
-        [Authorize(Policy = AdminRequirement.POLICITY)]
-        public async Task<IActionResult> SetPermiso(int idUsuario,string nombrePermiso)
+
+        public async Task<IActionResult> SetPermiso(int idUsuario, string nombrePermiso)
         {
             UserInfo grantedBy;
             UserPermiso userPermiso;
@@ -96,16 +111,16 @@ namespace GoogleLoginToken.Controllers
                 if (!Equals(user, default(UserInfo)))
                 {
                     nombrePermiso = nombrePermiso.ToLower();
-                    permiso = Context.Permisos.Where(p => Equals(p.Name, nombrePermiso)).FirstOrDefault();
+                    permiso = Context.Permisos.Where(p => Equals(p.Name.ToLower(), nombrePermiso)).FirstOrDefault();
                     if (!Equals(permiso, default(Permiso)))
                     {
-                        if (permiso.CanAdd)
+                        if (Context.CanAddUsuario(permiso))
                         {
-                            grantedBy = Context.GetUserWithEmailOrDefault(new UserInfo(HttpContext.User).Email);//aqui leo el usuario admin
-                            if (!Equals(grantedBy, default(UserInfo)) && grantedBy.IsAdmin)
+                            grantedBy = Context.GetUserWithEmailOrDefault(UserInfo.GetEmailFromHttpContext(HttpContext));//aqui leo el usuario admin
+                            if (!Equals(grantedBy, default(UserInfo)) && permiso.OnlyAdminCanSet && Context.IsAdmin(grantedBy) || Context.CanSetPermiso(grantedBy))
                             {
-                                userPermiso = user.Permisos.Where(p => Equals(p.Permiso.Name, nombrePermiso)).FirstOrDefault();
-                                if (Equals(user, default(UserPermiso)))
+                                userPermiso = Context.GetRolOrDefault(user, nombrePermiso);
+                                if (Equals(userPermiso, default(UserPermiso)))
                                 {
                                     userPermiso = new UserPermiso(user, permiso, grantedBy);
                                     Context.Add(userPermiso);
@@ -117,7 +132,7 @@ namespace GoogleLoginToken.Controllers
                                     userPermiso.SetGranted(grantedBy);
                                 }
                                 await Context.SaveChangesAsync();
-                                result = Ok(user);
+                                result = Ok(new UserInfoDto(user, Context.GetPermisos(user)));
                             }
                             else
                             {
@@ -146,7 +161,7 @@ namespace GoogleLoginToken.Controllers
 
         [HttpDelete]
         [Route("permisos/{idUsuario:int}/{nombrePermiso}")]
-        [Authorize(Policy = AdminRequirement.POLICITY)]
+        [Authorize]
         public async Task<IActionResult> UnsetPermiso(int idUsuario, string nombrePermiso)
         {
             UserInfo revokedBy;
@@ -165,19 +180,19 @@ namespace GoogleLoginToken.Controllers
                     permiso = Context.Permisos.Where(p => Equals(p.Name, nombrePermiso)).FirstOrDefault();
                     if (!Equals(permiso, default(Permiso)))
                     {
-                        if (permiso.CanRemove)
+                        if (Context.CanRemoveUsuario(permiso))
                         {
-                            revokedBy = Context.GetUserWithEmailOrDefault(new UserInfo(HttpContext.User).Email);//aqui leo el usuario admin
-                            if (!Equals(revokedBy, default(UserInfo)))
+                            revokedBy = Context.GetUserWithEmailOrDefault(UserInfo.GetEmailFromHttpContext(HttpContext));//aqui leo el usuario admin
+                            if (!Equals(revokedBy, default(UserInfo)) &&  permiso.OnlyAdminCanSet && Context.IsAdmin(revokedBy) || Context.CanSetPermiso(revokedBy))
                             {
-                                userPermiso = user.Permisos.Where(p => Equals(p.Permiso.Name, nombrePermiso)).FirstOrDefault();
+                                userPermiso = Context.GetRolOrDefault(user, nombrePermiso);
                                 if (!Equals(userPermiso, default(UserPermiso)) && userPermiso.IsActive)
                                 {
 
                                     userPermiso.SetRevoked(revokedBy);
                                     await Context.SaveChangesAsync();
                                 }
-                                result = Ok(user);
+                                result = Ok(new UserInfoDto(user, Context.GetPermisos(user)));
                             }
                             else
                             {
@@ -198,6 +213,49 @@ namespace GoogleLoginToken.Controllers
                 {
                     result = NotFound();
                 }
+            }
+            else result = Unauthorized();
+
+            return result;
+        }
+
+        [HttpPost]
+        [Route("validate/{idUsuario:int}/")]
+        [Authorize]
+        public async Task<IActionResult> ValidateUser(int idUsuario)
+        {
+            UserInfo validator;
+            IActionResult result;
+            UserInfo user;
+
+            if (HttpContext.User.Identity.IsAuthenticated)
+            {
+                user = await Context.FindAsync<UserInfo>(idUsuario);
+
+                if (!Equals(user, default(UserInfo)))
+                {
+
+                    validator = Context.GetUserWithEmailOrDefault(UserInfo.GetEmailFromHttpContext(HttpContext));//aqui leo el usuario admin
+                    if (!Equals(validator, default(UserInfo)) && Context.CanValidate(validator))
+                    {
+                        if (!user.IsValidated)
+                        {
+                            user.IdValidador = validator.Id;
+                            await Context.SaveChangesAsync();
+                        }
+
+                        result = Ok(new UserInfoDto(user, Context.GetPermisos(user)));
+                    }
+                    else
+                    {
+                        result = StatusCode(StatusCodes.Status403Forbidden);
+                    }
+                }
+                else
+                {
+                    result = StatusCode(StatusCodes.Status416RangeNotSatisfiable);
+                }
+
             }
             else result = Unauthorized();
 

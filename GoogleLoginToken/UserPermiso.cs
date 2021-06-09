@@ -14,7 +14,7 @@ namespace GoogleLoginToken
             User = user;
             Permiso = permiso;
             IdPermiso = permiso.Id;
-            IdUser = permiso.Id;
+            IdUser = user.Id;
             SetGranted(grantedBy);
         }
 
@@ -38,11 +38,11 @@ namespace GoogleLoginToken
         public UserInfo RevokedBy { get; set; }
         public DateTime? FechaRevoked { get; set; }
 
-        public bool IsActive => FechaGranted >= FechaRevoked;//si son iguales es que es default(DateTime)
+        public bool IsActive =>  FechaGranted.GetValueOrDefault() >= FechaRevoked.GetValueOrDefault();//si son iguales es que es default(DateTime)
 
         public void SetRevoked(UserInfo revokedBy)
         {
-            if (IsActive&&revokedBy.IsAdmin)
+            if (IsActive)
             {
                 RevokedBy = revokedBy;
                 IdRevokedBy = revokedBy.Id;
@@ -52,16 +52,21 @@ namespace GoogleLoginToken
         public void SetGranted(UserInfo grantedBy)
         {
         
-                if (!IsActive &&grantedBy.IsAdmin)
+                if (!IsActive)
                 {
                     GrantedBy = grantedBy;
                     IdGrantedBy = grantedBy.Id;
                     FechaGranted = DateTime.UtcNow;
                 }
         }
+        public override string ToString()
+        {
+            return $"{IsActive} IdUser {IdUser} IdPermiso {IdPermiso}";
+        }
     }
     public class UserPermisoDto
     {
+        public UserPermisoDto() { }
         public UserPermisoDto(UserPermiso permiso) => Name = permiso.Permiso.Name;
         public string Name { get; set; }
     }

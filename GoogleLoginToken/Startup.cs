@@ -77,13 +77,14 @@ namespace GoogleLoginToken
                 };
             }).AddCookie(options =>
             {
-                options.LoginPath = "/account/google-login"; // Must be lowercase
+                options.LoginPath = "/account/login"; // Must be lowercase
                 
             })
             .AddGoogle(options =>
             {
                 options.ClientId = Configuration["Google:ClientId"];
                 options.ClientSecret = Configuration["Google:ClientSecret"];
+                options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;//imprescindible sino usa el JWT
             });
             services.AddHttpContextAccessor();
             //permisos
@@ -93,7 +94,7 @@ namespace GoogleLoginToken
                 options.AddPolicy(AdminRequirement.POLICITY, policy => policy.Requirements.Add(new AdminRequirement()));
             });
 
-            services.AddTransient<IAuthorizationHandler, AdminAuthorizationHandler>();
+            services.AddScoped<IAuthorizationHandler, AdminAuthorizationHandler>();
 
         }
 
