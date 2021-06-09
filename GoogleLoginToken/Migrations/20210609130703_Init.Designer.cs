@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GoogleLoginToken.Migrations
 {
     [DbContext(typeof(LoginContext))]
-    [Migration("20210609020442_Init")]
+    [Migration("20210609130703_Init")]
     partial class Init
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -78,41 +78,31 @@ namespace GoogleLoginToken.Migrations
 
             modelBuilder.Entity("GoogleLoginToken.UserPermiso", b =>
                 {
-                    b.Property<int>("IdUser")
+                    b.Property<int>("UserId")
                         .HasColumnType("int");
 
-                    b.Property<int>("IdPermiso")
+                    b.Property<int>("PermisoId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("FechaGranted")
+                    b.Property<DateTime>("FechaGranted")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("FechaRevoked")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int?>("IdGrantedBy")
-                        .HasColumnType("int")
-                        .HasColumnName("GrantedById");
-
-                    b.Property<int?>("IdRevokedBy")
-                        .HasColumnType("int")
-                        .HasColumnName("RevokedById");
-
-                    b.Property<int?>("PermisoId")
+                    b.Property<int>("GrantedById")
                         .HasColumnType("int");
 
-                    b.Property<int?>("UserId")
+                    b.Property<int?>("RevokedById")
                         .HasColumnType("int");
 
-                    b.HasKey("IdUser", "IdPermiso");
+                    b.HasKey("UserId", "PermisoId");
 
-                    b.HasIndex("IdGrantedBy");
-
-                    b.HasIndex("IdRevokedBy");
+                    b.HasIndex("GrantedById");
 
                     b.HasIndex("PermisoId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("RevokedById");
 
                     b.ToTable("PermisosUsuarios");
                 });
@@ -121,19 +111,25 @@ namespace GoogleLoginToken.Migrations
                 {
                     b.HasOne("GoogleLoginToken.UserInfo", "GrantedBy")
                         .WithMany()
-                        .HasForeignKey("IdGrantedBy");
-
-                    b.HasOne("GoogleLoginToken.UserInfo", "RevokedBy")
-                        .WithMany()
-                        .HasForeignKey("IdRevokedBy");
+                        .HasForeignKey("GrantedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("GoogleLoginToken.Permiso", "Permiso")
                         .WithMany("Usuarios")
-                        .HasForeignKey("PermisoId");
+                        .HasForeignKey("PermisoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GoogleLoginToken.UserInfo", "RevokedBy")
+                        .WithMany()
+                        .HasForeignKey("RevokedById");
 
                     b.HasOne("GoogleLoginToken.UserInfo", "User")
                         .WithMany("Permisos")
-                        .HasForeignKey("UserId");
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("GrantedBy");
 

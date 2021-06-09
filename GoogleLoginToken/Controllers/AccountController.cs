@@ -93,7 +93,7 @@ namespace GoogleLoginToken.Controllers
 
         }
 
-        [Authorize(Policy = AdminRequirement.POLICITY)]
+        [Authorize]
         [HttpPost]
         [Route("permisos/{idUsuario:int}/{nombrePermiso}")]
 
@@ -116,7 +116,7 @@ namespace GoogleLoginToken.Controllers
                     {
                         if (Context.CanAddUsuario(permiso))
                         {
-                            grantedBy = Context.GetUserWithEmailOrDefault(UserInfo.GetEmailFromHttpContext(HttpContext));//aqui leo el usuario admin
+                            grantedBy = Context.GetUserFromHttpContext(HttpContext);//aqui leo el usuario admin
                             if (!Equals(grantedBy, default(UserInfo)) && permiso.OnlyAdminCanSet && Context.IsAdmin(grantedBy) || Context.CanSetPermiso(grantedBy))
                             {
                                 userPermiso = Context.GetRolOrDefault(user, nombrePermiso);
@@ -136,7 +136,7 @@ namespace GoogleLoginToken.Controllers
                             }
                             else
                             {
-                                result = StatusCode(StatusCodes.Status403Forbidden);
+                                result = Forbid();
                             }
                         }
                         else
@@ -182,7 +182,7 @@ namespace GoogleLoginToken.Controllers
                     {
                         if (Context.CanRemoveUsuario(permiso))
                         {
-                            revokedBy = Context.GetUserWithEmailOrDefault(UserInfo.GetEmailFromHttpContext(HttpContext));//aqui leo el usuario admin
+                            revokedBy = Context.GetUserFromHttpContext(HttpContext);//aqui leo el usuario admin
                             if (!Equals(revokedBy, default(UserInfo)) &&  permiso.OnlyAdminCanSet && Context.IsAdmin(revokedBy) || Context.CanSetPermiso(revokedBy))
                             {
                                 userPermiso = Context.GetRolOrDefault(user, nombrePermiso);
@@ -196,7 +196,7 @@ namespace GoogleLoginToken.Controllers
                             }
                             else
                             {
-                                result = StatusCode(StatusCodes.Status403Forbidden);
+                                result =Forbid();
                             }
                         }
                         else
@@ -234,8 +234,8 @@ namespace GoogleLoginToken.Controllers
 
                 if (!Equals(user, default(UserInfo)))
                 {
-
-                    validator = Context.GetUserWithEmailOrDefault(UserInfo.GetEmailFromHttpContext(HttpContext));//aqui leo el usuario admin
+                    //aqui leo el usuario admin
+                    validator = Context.GetUserFromHttpContext(HttpContext);
                     if (!Equals(validator, default(UserInfo)) && Context.CanValidate(validator))
                     {
                         if (!user.IsValidated)
@@ -248,7 +248,7 @@ namespace GoogleLoginToken.Controllers
                     }
                     else
                     {
-                        result = StatusCode(StatusCodes.Status403Forbidden);
+                        result = Forbid();
                     }
                 }
                 else
@@ -258,6 +258,24 @@ namespace GoogleLoginToken.Controllers
 
             }
             else result = Unauthorized();
+
+            return result;
+        }
+
+
+
+        [HttpGet("testAdmin")]
+        [Authorize(Policy =AdminRequirement.POLICITY)]//no funciona...no pasa por la clase  AdminAuthorizationHandler
+        public IActionResult TestAdmin()
+        {
+            IActionResult result;
+            UserInfo user= Context.GetUserFromHttpContext(HttpContext);
+
+            if (Equals(user, default(UserInfo)) || !Context.IsAdmin(user))
+            {
+                result = Forbid();
+            }
+            else result = Ok();
 
             return result;
         }

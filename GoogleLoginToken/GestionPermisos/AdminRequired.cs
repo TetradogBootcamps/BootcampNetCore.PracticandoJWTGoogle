@@ -8,37 +8,29 @@ using System.Threading.Tasks;
 namespace GoogleLoginToken.GestionPermisos
 {
     // A handler that can determine whether a MaximumOfficeNumberRequirement is satisfied
-    internal class AdminAuthorizationHandler : AuthorizationHandler<AdminRequirement>
+    public class AdminAuthorizationHandler : AuthorizationHandler<AdminRequirement>
     {
-        LoginContext Context { get; set; }
-        public AdminAuthorizationHandler(LoginContext context) => Context = context;
-        protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, AdminRequirement requirement)
+        protected async override Task HandleRequirementAsync(AuthorizationHandlerContext context, AdminRequirement requirement)
         {
-            const string CLAIMTYPE = "email";
+            const string CLAIMTYPE = nameof(UserInfo.Permisos);
 
+            System.Text.Json.JsonElement permisos;
 
-            Claim claim;
-            Task result=Task.CompletedTask;
+            Claim claim = context.User.FindFirst(c => c.Type == CLAIMTYPE);
             // Bail out if the office number claim isn't present
-            if (context.User.HasClaim(c =>  c.Type == CLAIMTYPE))
+
+            if (!Equals(claim, default(Claim)))
             {
-                claim = context.User.FindFirst(c => c.Type == CLAIMTYPE);
-                if (!Equals(claim, default(Claim)))
+                permisos = System.Text.Json.JsonDocument.Parse(claim.Value).RootElement;
+                // Finally, validate that the office number from the claim is not greater
+                // than the requirement's maximum
+                if (permisos.EnumerateArray().Any(p => Equals(p.GetString(), Permiso.ADMIN)))
                 {
-
-                    // Finally, validate that the office number from the claim is not greater
-                    // than the requirement's maximum
-                    if (Context.GetUserWithEmailOrDefault(claim.Value).IsAdmin)
-                    {
-                        // Mark the requirement as satisfied
-                        context.Succeed(requirement);
-                    }
+                    // Mark the requirement as satisfied
+                    context.Succeed(requirement);
                 }
-
-
             }
 
-            return result;
         }
     }
 
@@ -46,7 +38,7 @@ namespace GoogleLoginToken.GestionPermisos
     public class AdminRequirement : IAuthorizationRequirement
     {
 
-        public const string POLICITY= "AdminIsRequired";
+        public const string POLICITY = "AdminIsRequired";
 
     }
 }

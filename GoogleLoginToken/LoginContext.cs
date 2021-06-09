@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,9 +19,13 @@ namespace GoogleLoginToken
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<UserPermiso>().HasKey(nameof(UserPermiso.IdUser), nameof(UserPermiso.IdPermiso));
             modelBuilder.Entity<UserInfo>().HasMany(u => u.Permisos).WithOne(p => p.User);
             modelBuilder.Entity<Permiso>().HasMany(u => u.Usuarios).WithOne(p => p.Permiso);
+
+            modelBuilder.Entity<UserPermiso>().HasKey(nameof(UserPermiso.UserId), nameof(UserPermiso.PermisoId));
+            modelBuilder.Entity<UserPermiso>().HasOne(u => u.User).WithMany(u => u.Permisos);
+            modelBuilder.Entity<UserPermiso>().HasOne(u => u.Permiso).WithMany(u => u.Usuarios);
+
 
         }
 
@@ -34,15 +39,20 @@ namespace GoogleLoginToken
         {
             return Users.Where(u => Equals(u.Email, email)).FirstOrDefault();
         }
+        public UserInfo GetUserFromHttpContext(HttpContext httpContext)
+        {
+            return GetUserWithEmailOrDefault(UserInfo.GetEmailFromHttpContext(httpContext));
+        }
         public UserPermiso GetRolOrDefault(UserInfo user, string rol)
         {
-            return PermisosUsuarios.Where(p => p.IdUser == user.Id && p.Permiso.Name == rol).FirstOrDefault();
+            IList<Permiso> permisos = Permisos.ToList();//si no lo pongo me falla p.Permiso...porque es null...
+            return PermisosUsuarios.ToList().Where(p => p.IsActive && p.UserId == user.Id && p.Permiso.Name == rol).FirstOrDefault();
         }
         public bool IsAdmin(UserInfo user) => !Equals(GetRolOrDefault(user, Permiso.ADMIN), default(UserPermiso));
 
         public IList<Permiso> GetPermisos(UserInfo user)
         {
-            int[] ids = PermisosUsuarios.ToList().Where(p => p.IdUser == user.Id && p.IsActive).Select(p => p.IdPermiso).ToArray();
+            int[] ids = PermisosUsuarios.ToList().Where(p => p.IsActive && p.UserId == user.Id ).Select(p => p.PermisoId).ToArray();
             return Permisos.Where(p => ids.Contains(p.Id)).ToArray();
         }
 
@@ -58,7 +68,7 @@ namespace GoogleLoginToken
         public bool CanValidate(UserInfo user) => GetPermisos(user).Select(p => p.Name).Intersect(Permiso.CanValidate).Count() > 0;
         IList<UserInfo> GetUsers(Permiso permiso)
         {
-            int[] ids = PermisosUsuarios.ToList().Where(p => p.IdPermiso == permiso.Id && p.IsActive).Select(p => p.IdUser).ToArray();
+            int[] ids = PermisosUsuarios.ToList().Where(p => p.IsActive && p.PermisoId == permiso.Id).Select(p => p.UserId).ToArray();
             return Users.Where(p => ids.Contains(p.Id)).ToArray();
         }
 

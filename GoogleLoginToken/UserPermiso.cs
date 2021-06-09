@@ -13,39 +13,41 @@ namespace GoogleLoginToken
         {
             User = user;
             Permiso = permiso;
-            IdPermiso = permiso.Id;
-            IdUser = user.Id;
+
+            PermisoId = permiso.Id;
+            UserId = user.Id;
+
             SetGranted(grantedBy);
         }
 
-        public int IdPermiso { get; set; }
+        public int PermisoId { get; set; }
 
         public Permiso Permiso { get; set; }
 
-        public int IdUser { get; set; }
+        public int UserId { get; set; }
 
         public UserInfo User { get; set; }
 
-        [Column("GrantedById")]
-        public int? IdGrantedBy { get; set; }
-        [ForeignKey(nameof(IdGrantedBy))]
-        public UserInfo GrantedBy { get; set; }
-        public DateTime? FechaGranted { get; set; }
 
-        [Column("RevokedById")]
-        public int? IdRevokedBy { get; set; }
-        [ForeignKey(nameof(IdRevokedBy))]
+        public int GrantedById { get; set; }
+
+        public UserInfo GrantedBy { get; set; }
+        public DateTime FechaGranted { get; set; }
+
+
+        public int? RevokedById { get; set; }
+
         public UserInfo RevokedBy { get; set; }
         public DateTime? FechaRevoked { get; set; }
 
-        public bool IsActive =>  FechaGranted.GetValueOrDefault() >= FechaRevoked.GetValueOrDefault();//si son iguales es que es default(DateTime)
+        public bool IsActive =>  FechaGranted >= FechaRevoked.GetValueOrDefault();//si son iguales es que es default(DateTime)
 
         public void SetRevoked(UserInfo revokedBy)
         {
             if (IsActive)
             {
                 RevokedBy = revokedBy;
-                IdRevokedBy = revokedBy.Id;
+                RevokedById = revokedBy.Id;
                 FechaRevoked = DateTime.UtcNow;
             }
         }
@@ -55,13 +57,13 @@ namespace GoogleLoginToken
                 if (!IsActive)
                 {
                     GrantedBy = grantedBy;
-                    IdGrantedBy = grantedBy.Id;
+                    GrantedById = grantedBy.Id;
                     FechaGranted = DateTime.UtcNow;
                 }
         }
         public override string ToString()
         {
-            return $"{IsActive} IdUser {IdUser} IdPermiso {IdPermiso}";
+            return $"{IsActive} IdUser {UserId} IdPermiso {PermisoId}";
         }
     }
     public class UserPermisoDto
