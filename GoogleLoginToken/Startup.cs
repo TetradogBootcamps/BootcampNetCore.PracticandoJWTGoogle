@@ -55,31 +55,35 @@ namespace GoogleLoginToken
             services.AddDbContextPool<LoginContext>(o => o.UseMySql(
                      Configuration.GetConnectionString("Default"), new MariaDbServerVersion(new Version(10, 5, 10)))
                     );
-            services.AddAuthentication(options =>
-                    {
-                        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                    })
-                   .AddCookie(options =>
-                   {
-                       options.LoginPath = "/account/google-login"; // Must be lowercase
-                   })
-                   .AddGoogle(options =>
-                   {
-                       options.ClientId = Configuration["Google:ClientId"];
-                       options.ClientSecret = Configuration["Google:ClientSecret"];
-                   });
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+
+            services.AddAuthentication(option =>
+            {
+                option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+
+            }).AddJwtBearer(options =>
             {
                 options.RequireHttpsMetadata = false;
                 options.SaveToken = true;
                 options.TokenValidationParameters = new TokenValidationParameters()
                 {
                     ValidateIssuer = true,
-                    ValidateAudience=true,
-                    ValidAudience=Configuration["Jwt:Audience"],
-                    ValidIssuer=Configuration["Jwt:Issuer"],
-                    IssuerSigningKey=new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
+                    ValidateAudience = true,
+                    ValidateLifetime=true,
+                    ValidateIssuerSigningKey = true,
+                    ValidAudience = Configuration["Jwt:Audience"],
+                    ValidIssuer = Configuration["Jwt:Issuer"],
+                    IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
                 };
+            }).AddCookie(options =>
+            {
+                options.LoginPath = "/account/google-login"; // Must be lowercase
+                
+            })
+            .AddGoogle(options =>
+            {
+                options.ClientId = Configuration["Google:ClientId"];
+                options.ClientSecret = Configuration["Google:ClientSecret"];
             });
             services.AddHttpContextAccessor();
             //permisos
@@ -89,7 +93,7 @@ namespace GoogleLoginToken
                 options.AddPolicy(AdminRequirement.POLICITY, policy => policy.Requirements.Add(new AdminRequirement()));
             });
 
-            services.AddSingleton<IAuthorizationHandler, AdminAuthorizationHandler>();
+            services.AddTransient<IAuthorizationHandler, AdminAuthorizationHandler>();
 
         }
 
@@ -104,7 +108,7 @@ namespace GoogleLoginToken
                 app.UseCors(MyAllowSpecificOrigins);
             }
 
-     
+
             app.UseRouting();
             app.UseHttpsRedirection();
             app.UseAuthentication();
