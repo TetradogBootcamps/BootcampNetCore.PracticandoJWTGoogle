@@ -9,7 +9,7 @@ namespace GoogleLoginToken
     public class UserPermiso
     {
         public UserPermiso() { }
-        public UserPermiso([NotNull] UserInfo user, [NotNull] Permiso permiso, [NotNull] UserInfo grantedBy)
+        public UserPermiso([NotNull] User user, [NotNull] Permiso permiso, [NotNull] User grantedBy)
         {
             User = user;
             Permiso = permiso;
@@ -19,45 +19,45 @@ namespace GoogleLoginToken
 
             SetGranted(grantedBy);
         }
-
+        [Key]
         public int PermisoId { get; set; }
 
         public Permiso Permiso { get; set; }
-
+        [Key]
         public int UserId { get; set; }
 
-        public UserInfo User { get; set; }
+        public User User { get; set; }
 
 
-        public int GrantedById { get; set; }
+        public int GrantedId { get; set; }
 
-        public UserInfo GrantedBy { get; set; }
+        public User Granted { get; set; }
         public DateTime FechaGranted { get; set; }
 
 
-        public int? RevokedById { get; set; }
+        public int? RevokedId { get; set; }
 
-        public UserInfo RevokedBy { get; set; }
+        public User Revoked { get; set; }
         public DateTime? FechaRevoked { get; set; }
 
         public bool IsActive =>  FechaGranted >= FechaRevoked.GetValueOrDefault();//si son iguales es que es default(DateTime)
 
-        public void SetRevoked(UserInfo revokedBy)
+        public void SetRevoked(User revokedBy)
         {
             if (IsActive)
             {
-                RevokedBy = revokedBy;
-                RevokedById = revokedBy.Id;
+                Revoked = revokedBy;
+                RevokedId = revokedBy.Id;
                 FechaRevoked = DateTime.UtcNow;
             }
         }
-        public void SetGranted(UserInfo grantedBy)
+        public void SetGranted(User grantedBy)
         {
         
                 if (!IsActive)
                 {
-                    GrantedBy = grantedBy;
-                    GrantedById = grantedBy.Id;
+                    Granted = grantedBy;
+                    GrantedId = grantedBy.Id;
                     FechaGranted = DateTime.UtcNow;
                 }
         }

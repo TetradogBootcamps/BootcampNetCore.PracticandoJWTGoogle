@@ -18,12 +18,16 @@ using System.Linq;
 using System.Threading.Tasks;
 using GoogleLoginToken.GestionPermisos;
 
+
 namespace GoogleLoginToken
 {
     public class Startup
     {
+
+
         public Startup(IConfiguration configuration)
         {
+
             Configuration = configuration;
             MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
         }
@@ -95,6 +99,7 @@ namespace GoogleLoginToken
             });
 
             services.AddScoped<IAuthorizationHandler, AdminAuthorizationHandler>();
+      
 
         }
 

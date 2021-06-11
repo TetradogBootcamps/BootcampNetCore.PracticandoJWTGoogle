@@ -17,11 +17,11 @@ using System.Threading.Tasks;
 namespace GoogleLoginToken
 {
     [Index(nameof(Email), IsUnique = true, Name = nameof(Email) + "_uniqueContraint")]
-    public class UserInfo
+    public class User
     {
         public static DateTime DefaultExpireTokenDate { get; set; } = DateTime.UtcNow.AddDays(1);
-        public UserInfo() { Permisos = new List<UserPermiso>(); }
-        public UserInfo([NotNull] ClaimsPrincipal principal):this() {
+        public User() { }
+        public User([NotNull] ClaimsPrincipal principal):this() {
         
            Claim[] claims=principal.Identities.FirstOrDefault().Claims.ToArray();
 
@@ -41,14 +41,21 @@ namespace GoogleLoginToken
         public string LastName { get; set; }
         [Required]
         public string Email { get; set; }
-        public int? IdValidador { get; set; }
+        public int? ValidadorId { get; set; }
+        public User Validador { get; set; }
+        public IList<User> ValidadorList { get; set; }
+        public bool IsValidated => ValidadorId.HasValue;
         [JsonIgnore]
-        public IList<UserPermiso> Permisos { get; set; }
+        public ICollection<UserPermiso> PermisoList { get; set; }
+        //[JsonIgnore]
+        //public ICollection<UserPermiso> GrantedList { get; set; }
+        //[JsonIgnore]
+        //public ICollection<UserPermiso> RevokedList { get; set; }
 
-        public string[] PermisosName => Permisos.Where(p=>!Equals(p.Permiso,default(Permiso))).Select(p => p.Permiso.Name).ToArray();
+        //public string[] PermisosName => PermisoList.Where(p => !Equals(p.Permiso, default(Permiso))).Select(p => p.Permiso.Name).ToArray();
 
-        public bool IsValidated => IdValidador.HasValue;
-        public bool IsAdmin => Permisos.Where(p=>p.Permiso!=default(Permiso)).Any(p => Equals(p.Permiso.Name, Permiso.ADMIN));
+
+        //public bool IsAdmin => PermisoList.Where(p => p.Permiso != default(Permiso)).Any(p => Equals(p.Permiso.Name, Permiso.ADMIN));
 
         public JwtSecurityToken GetToken(IConfiguration configuration,DateTime expiraToken=default(DateTime))
         {
@@ -63,7 +70,7 @@ namespace GoogleLoginToken
                 new Claim(nameof(LastName),LastName),
                 new Claim(nameof(Email),Email),
                 new Claim(nameof(IsValidated),IsValidated.ToString()),
-                new Claim(nameof(Permisos),System.Text.Json.JsonSerializer.Serialize(PermisosName))
+                //new Claim(nameof(PermisoList),System.Text.Json.JsonSerializer.Serialize(PermisosName))
             };
             return new JwtSecurityToken(configuration["Jwt:Issuer"], configuration["Jwt:Audience"],
                                         claims, expires: Equals(expiraToken, default(DateTime)) ? DefaultExpireTokenDate : expiraToken,
@@ -87,7 +94,7 @@ namespace GoogleLoginToken
     public class UserInfoDto
     {
         public UserInfoDto() { }
-        public UserInfoDto(UserInfo user,IList<Permiso> permisos)
+        public UserInfoDto(User user,IList<Permiso> permisos)
         {
             Name = user.FirstName;
             Email = user.Email;

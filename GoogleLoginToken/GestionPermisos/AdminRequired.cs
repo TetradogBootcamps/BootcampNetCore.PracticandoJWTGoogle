@@ -12,7 +12,7 @@ namespace GoogleLoginToken.GestionPermisos
     {
         protected async override Task HandleRequirementAsync(AuthorizationHandlerContext context, AdminRequirement requirement)
         {
-            const string CLAIMTYPE = nameof(UserInfo.Permisos);
+            const string CLAIMTYPE = "";// nameof(User.PermisoList);
 
             System.Text.Json.JsonElement permisos;
 

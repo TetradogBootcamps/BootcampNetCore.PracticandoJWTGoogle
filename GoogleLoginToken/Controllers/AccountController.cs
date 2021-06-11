@@ -14,6 +14,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using GoogleLoginToken.GestionPermisos;
 using Microsoft.AspNetCore.Http;
+using Gabriel.Cat.S.Blazor;
 
 namespace GoogleLoginToken.Controllers
 {
@@ -35,10 +36,10 @@ namespace GoogleLoginToken.Controllers
         public IActionResult GetUser()
         {
             IActionResult result;
-            UserInfo user;
+            User user;
             if (HttpContext.User.Identity.IsAuthenticated)
             {
-                user = Context.GetUserWithEmailOrDefault(UserInfo.GetEmailFromHttpContext(HttpContext));
+                user = Context.GetUserWithEmailOrDefault(GoogleLoginToken.User.GetEmailFromHttpContext(HttpContext));
                 result = Ok(new UserInfoDto(user, Context.GetPermisos(user)));//aqui leo el usuario admin
             }
             else result = Unauthorized();
@@ -49,7 +50,10 @@ namespace GoogleLoginToken.Controllers
         [Route("login")]
         public IActionResult GoogleLogin()
         {
-            var properties = new AuthenticationProperties { RedirectUri = Url.Action(nameof(GetToken)) };
+            AuthenticationProperties properties;
+            Log.WriteLines("Se hace Login");
+
+            properties = new AuthenticationProperties { RedirectUri = Url.Action(nameof(GetToken)) };
             return Challenge(properties, GoogleDefaults.AuthenticationScheme);
         }
 
@@ -58,13 +62,17 @@ namespace GoogleLoginToken.Controllers
         public async Task<IActionResult> GetToken()
         {
             IActionResult result;
-            UserInfo userInfoAux;
+            User userInfoAux;
             JwtSecurityToken token;
-            AuthenticateResult googleResult = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            AuthenticateResult googleResult;
+
+            Log.WriteLines("Se obtiene el Token");
+
+            googleResult = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
             if (googleResult.Succeeded)
             {
-                userInfoAux = new UserInfo(googleResult.Principal);
+                userInfoAux = new User(googleResult.Principal);
                 if (!Context.ExistUser(userInfoAux))
                 {
                     //no existe pues lo añado
@@ -99,16 +107,16 @@ namespace GoogleLoginToken.Controllers
 
         public async Task<IActionResult> SetPermiso(int idUsuario, string nombrePermiso)
         {
-            UserInfo grantedBy;
+            User grantedBy;
             UserPermiso userPermiso;
             IActionResult result;
             Permiso permiso;
-            UserInfo user;
+            User user;
             if (HttpContext.User.Identity.IsAuthenticated)
             {
-                user = await Context.FindAsync<UserInfo>(idUsuario);
+                user = await Context.FindAsync<User>(idUsuario);
 
-                if (!Equals(user, default(UserInfo)))
+                if (!Equals(user, default(User)))
                 {
                     nombrePermiso = nombrePermiso.ToLower();
                     permiso = Context.Permisos.Where(p => Equals(p.Name.ToLower(), nombrePermiso)).FirstOrDefault();
@@ -117,14 +125,13 @@ namespace GoogleLoginToken.Controllers
                         if (Context.CanAddUsuario(permiso))
                         {
                             grantedBy = Context.GetUserFromHttpContext(HttpContext);//aqui leo el usuario admin
-                            if (!Equals(grantedBy, default(UserInfo)) && permiso.OnlyAdminCanSet && Context.IsAdmin(grantedBy) || Context.CanSetPermiso(grantedBy))
+                            if (!Equals(grantedBy, default(User)) && permiso.OnlyAdminCanSet && Context.IsAdmin(grantedBy) || Context.CanSetPermiso(grantedBy))
                             {
                                 userPermiso = Context.GetRolOrDefault(user, nombrePermiso);
                                 if (Equals(userPermiso, default(UserPermiso)))
                                 {
                                     userPermiso = new UserPermiso(user, permiso, grantedBy);
                                     Context.Add(userPermiso);
-                                    user.Permisos.Add(userPermiso);
 
                                 }
                                 else
@@ -164,17 +171,17 @@ namespace GoogleLoginToken.Controllers
         [Authorize]
         public async Task<IActionResult> UnsetPermiso(int idUsuario, string nombrePermiso)
         {
-            UserInfo revokedBy;
+            User revokedBy;
             UserPermiso userPermiso;
             IActionResult result;
             Permiso permiso;
-            UserInfo user;
+            User user;
 
             if (HttpContext.User.Identity.IsAuthenticated)
             {
-                user = await Context.FindAsync<UserInfo>(idUsuario);
+                user = await Context.FindAsync<User>(idUsuario);
 
-                if (!Equals(user, default(UserInfo)))
+                if (!Equals(user, default(User)))
                 {
                     nombrePermiso = nombrePermiso.ToLower();
                     permiso = Context.Permisos.Where(p => Equals(p.Name, nombrePermiso)).FirstOrDefault();
@@ -183,7 +190,7 @@ namespace GoogleLoginToken.Controllers
                         if (Context.CanRemoveUsuario(permiso))
                         {
                             revokedBy = Context.GetUserFromHttpContext(HttpContext);//aqui leo el usuario admin
-                            if (!Equals(revokedBy, default(UserInfo)) &&  permiso.OnlyAdminCanSet && Context.IsAdmin(revokedBy) || Context.CanSetPermiso(revokedBy))
+                            if (!Equals(revokedBy, default(User)) && permiso.OnlyAdminCanSet && Context.IsAdmin(revokedBy) || Context.CanSetPermiso(revokedBy))
                             {
                                 userPermiso = Context.GetRolOrDefault(user, nombrePermiso);
                                 if (!Equals(userPermiso, default(UserPermiso)) && userPermiso.IsActive)
@@ -196,7 +203,7 @@ namespace GoogleLoginToken.Controllers
                             }
                             else
                             {
-                                result =Forbid();
+                                result = Forbid();
                             }
                         }
                         else
@@ -224,25 +231,25 @@ namespace GoogleLoginToken.Controllers
         [Authorize]
         public async Task<IActionResult> ValidateUser(int idUsuario)
         {
-            UserInfo validator;
+            User validator;
             IActionResult result;
-            UserInfo user;
+            User user;
 
             if (HttpContext.User.Identity.IsAuthenticated)
             {
-                user = await Context.FindAsync<UserInfo>(idUsuario);
+                user = await Context.FindAsync<User>(idUsuario);
 
-                if (!Equals(user, default(UserInfo)))
+                if (!Equals(user, default(User)))
                 {
                     //aqui leo el usuario admin
                     validator = Context.GetUserFromHttpContext(HttpContext);
-                    if (!Equals(validator, default(UserInfo)) && Context.CanValidate(validator))
+                    if (!Equals(validator, default(User)) && Context.CanValidate(validator))
                     {
-                        if (!user.IsValidated)
-                        {
-                            user.IdValidador = validator.Id;
-                            await Context.SaveChangesAsync();
-                        }
+                        //if (!user.IsValidated)
+                        //{
+                        //    //user.IdValidador = validator.Id;
+                        //    await Context.SaveChangesAsync();
+                        //}
 
                         result = Ok(new UserInfoDto(user, Context.GetPermisos(user)));
                     }
@@ -265,13 +272,14 @@ namespace GoogleLoginToken.Controllers
 
 
         [HttpGet("testAdmin")]
-        [Authorize(Policy =AdminRequirement.POLICITY)]//no funciona...no pasa por la clase  AdminAuthorizationHandler
+        //[Authorize(Policy =AdminRequirement.POLICITY)]//no funciona...no pasa por la clase  AdminAuthorizationHandler
         public IActionResult TestAdmin()
         {
             IActionResult result;
-            UserInfo user= Context.GetUserFromHttpContext(HttpContext);
+            User user;
 
-            if (Equals(user, default(UserInfo)) || !Context.IsAdmin(user))
+            user = Context.GetUserFromHttpContext(HttpContext);
+            if (Equals(user, default(User)) || !Context.IsAdmin(user))
             {
                 result = Forbid();
             }
