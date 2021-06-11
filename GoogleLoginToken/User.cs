@@ -61,7 +61,8 @@ namespace GoogleLoginToken
 
 
         //public bool IsAdmin => PermisoList.Where(p => p.Permiso != default(Permiso)).Any(p => Equals(p.Permiso.Name, Permiso.ADMIN));
-
+        //public bool CanValidate=>IsAdmin || PermisosName.Intersect(Permiso.CanValidate).Count() > 0;
+        //public bool CanSetPermiso=>IsAdmin || PermisosName.Intersect(Permiso.CanSetPermiso).Count() > 0;
         public JwtSecurityToken GetToken(IConfiguration configuration,DateTime expiraToken=default(DateTime))
         {
             SymmetricSecurityKey key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]));
@@ -74,7 +75,7 @@ namespace GoogleLoginToken
                 new Claim(nameof(FirstName),FirstName),
                 new Claim(nameof(LastName),LastName),
                 new Claim(nameof(Email),Email),
-                new Claim(nameof(IsValidated),IsValidated.ToString()),
+                //new Claim(nameof(IsValidated),IsValidated.ToString()),//lo quito porque quizás se tenga que hacer diferente
                 //new Claim(nameof(PermisoList),System.Text.Json.JsonSerializer.Serialize(PermisosName))
             };
             return new JwtSecurityToken(configuration["Jwt:Issuer"], configuration["Jwt:Audience"],

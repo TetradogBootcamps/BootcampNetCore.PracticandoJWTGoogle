@@ -23,6 +23,8 @@ namespace GoogleLoginToken
 
         public int? Maximum { get; set; }
         //public ICollection<UserPermiso> UserList { get; set; }
+        //public bool CanAdd=>UserList.Count<Maximum;
+        //public bool CanRemove=>UserList.Count>Minimum;
 
         public override string ToString()
         {

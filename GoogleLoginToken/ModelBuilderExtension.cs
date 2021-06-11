@@ -90,6 +90,14 @@ namespace GoogleLoginToken
                                             if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedades[i].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
                                             {
                                                 modelBuilder.Entity<TEntity>().HasMany(propiedades[i].Nombre).WithOne(nombrePropiedad);
+
+                                                modelBuilder.Entity<TEntity>()
+                                                            .Navigation(propiedades[i].Nombre)
+                                                            .UsePropertyAccessMode(PropertyAccessMode.Property);
+                                                modelBuilder.Entity(arrayType)
+                                                            .Navigation(nombrePropiedad)
+                                                            .UsePropertyAccessMode(PropertyAccessMode.Property);
+
                                                 DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedades[i].Tipo.Name}.{nombrePropiedad}", true);
                                             }
                                         }
@@ -99,7 +107,15 @@ namespace GoogleLoginToken
                                             nombrePropiedadAux = propiedades[i].GetNombrePropiedadDestino(false);
                                             if (!NotContainsKey(nombrePropiedad, nombrePropiedadAux, assemblyQualifiedName))
                                             {
-                                                modelBuilder.Entity<TEntity>().HasMany(nombrePropiedad).WithMany(nombrePropiedadAux);
+                                                modelBuilder.Entity<TEntity>()
+                                                            .HasMany(nombrePropiedad)
+                                                            .WithMany(nombrePropiedadAux);
+                                                modelBuilder.Entity<TEntity>()
+                                                            .Navigation(nombrePropiedad)
+                                                            .UsePropertyAccessMode(PropertyAccessMode.Property);
+                                                modelBuilder.Entity(arrayType)
+                                                            .Navigation(nombrePropiedadAux)
+                                                            .UsePropertyAccessMode(PropertyAccessMode.Property);
                                                 DicRelations[assemblyQualifiedName].Add(nombrePropiedad, nombrePropiedadAux, true);
 
                                             }
@@ -133,7 +149,20 @@ namespace GoogleLoginToken
                                         encontrado = true;
                                         if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
                                         {
-                                            modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithOne( propiedadesProperty[j].Nombre).HasForeignKey(propiedadesProperty[j].Tipo, GetForeingKeyName(propiedadesProperty[j]));
+                                            modelBuilder.Entity<TEntity>()
+                                                .HasOne(propiedades[i].Nombre)
+                                                .WithOne(propiedadesProperty[j].Nombre)
+                                                .HasForeignKey(propiedadesProperty[j].Tipo, GetForeingKeyName(propiedadesProperty[j]));
+
+
+                                                    modelBuilder.Entity<TEntity>()
+                                                                .Navigation(propiedades[i].Nombre)
+                                                                .UsePropertyAccessMode(PropertyAccessMode.Property);
+
+                                            modelBuilder.Entity(propiedadesProperty[j].Tipo)
+                                                        .Navigation(propiedadesProperty[j].Nombre)
+                                                        .UsePropertyAccessMode(PropertyAccessMode.Property);
+
                                             DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", true);
                                         }
                                     }
@@ -149,6 +178,14 @@ namespace GoogleLoginToken
                                                 if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
                                                 {
                                                     modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithMany(nombrePropiedad);
+
+                                                    modelBuilder.Entity<TEntity>()
+                                                                .Navigation(propiedades[i].Nombre)
+                                                                .UsePropertyAccessMode(PropertyAccessMode.Property);
+
+                                                    modelBuilder.Entity(propiedadesProperty[j].Tipo)
+                                                                .Navigation(nombrePropiedad)
+                                                                .UsePropertyAccessMode(PropertyAccessMode.Property);
                                                     DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", true);
                                                 }
                                             }
@@ -161,7 +198,14 @@ namespace GoogleLoginToken
                                             {
                                                 if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
                                                 {
-                                                    modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithOne(nombrePropiedad);
+                                                    modelBuilder.Entity<TEntity>()
+                                                                .HasOne(propiedades[i].Nombre)
+                                                                .WithOne(nombrePropiedad);
+
+                                                    modelBuilder.Entity<TEntity>()
+                                                                .Navigation(propiedades[i].Nombre)
+                                                                .UsePropertyAccessMode(PropertyAccessMode.Property);
+
                                                     DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", true);
                                                 }
 
@@ -172,7 +216,14 @@ namespace GoogleLoginToken
                                     {
                                         encontrado = true;
 
-                                        modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithMany().HasForeignKey(propiedades[i].Nombre + nombrePropiedad);
+                                        modelBuilder.Entity<TEntity>()
+                                                    .HasOne(propiedades[i].Nombre)
+                                                    .WithMany()
+                                                    .HasForeignKey(propiedades[i].Nombre + nombrePropiedad);
+
+                                        modelBuilder.Entity<TEntity>()
+                                                    .Navigation(propiedades[i].Nombre)
+                                                    .UsePropertyAccessMode(PropertyAccessMode.Property);
                                     }
 
 
@@ -196,7 +247,7 @@ namespace GoogleLoginToken
                 name = propiedadTipo.Nombre + ID;
             else name = attrForingKey.Name;
 
-            return new string[]{ name};
+            return new string[] { name };
         }
 
         static bool NotContainsKey(string key1, string key2, string bdName)
@@ -294,6 +345,7 @@ namespace GoogleLoginToken
             {
                 ConfigureEntity(modelBuilder, tiposDbContext[i], assemblyQualifiedName);
             }
+            //parche
             for (int i = 0; i < tiposDbContext.Length; i++)
             {
                 metadata = modelBuilder.Entity(tiposDbContext[i].FullName).Metadata;

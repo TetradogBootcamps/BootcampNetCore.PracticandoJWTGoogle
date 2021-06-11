@@ -15,6 +15,7 @@ namespace GoogleLoginToken
     {
         public LoginContext(DbContextOptions<LoginContext> options) : base(options) { }
 
+        bool IsLoaded { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<UserDetails> UserDetails { get; set; }
         public DbSet<Permiso> Permisos { get; set; }
@@ -30,39 +31,41 @@ namespace GoogleLoginToken
 
         public User GetUserWithEmailOrDefault(string email)
         {
-            return Users.Where(u => Equals(u.Email, email)).FirstOrDefault();
+            return Users.IncludeAll().Where(u => Equals(u.Email, email)).FirstOrDefault();
         }
+
+
+
         public User GetUserFromHttpContext(HttpContext httpContext)
         {
             return GetUserWithEmailOrDefault(User.GetEmailFromHttpContext(httpContext));
         }
         public UserPermiso GetRolOrDefault(User user, string rol)
         {
-            IList<Permiso> permisos = Permisos.ToList();//si no lo pongo me falla p.Permiso...porque es null...
-            return PermisosUsuarios.ToList().Where(p => p.IsActive && p.UserId == user.Id && p.Permiso.Name == rol).FirstOrDefault();
+            return PermisosUsuarios.IncludeAll().ToList().Where(p => p.IsActive && p.UserId == user.Id && p.Permiso.Name == rol).FirstOrDefault();
         }
         public bool IsAdmin(User user) => !Equals(GetRolOrDefault(user, Permiso.ADMIN), default(UserPermiso));
 
         public IList<Permiso> GetPermisos(User user)
         {
-            int[] ids = PermisosUsuarios.ToList().Where(p => p.IsActive && p.UserId == user.Id ).Select(p => p.PermisoId).ToArray();
-            return Permisos.Where(p => ids.Contains(p.Id)).ToArray();
+            int[] ids = PermisosUsuarios.IncludeAll().ToList().Where(p => p.IsActive && p.UserId == user.Id ).Select(p => p.PermisoId).ToArray();
+            return Permisos.IncludeAll().ToList().Where(p => ids.Contains(p.Id)).ToArray();
         }
 
         public bool CanAddUsuario(Permiso permiso)
         {
-            return  GetUsers(permiso).Count< permiso.Maximum;
+            return !permiso.Maximum.HasValue ||  GetUsers(permiso).Count< permiso.Maximum;
         }
 
         public bool CanRemoveUsuario(Permiso permiso)
         {
-            return  GetUsers(permiso).Count > permiso.Minimum;
+            return !permiso.Minimum.HasValue || GetUsers(permiso).Count > permiso.Minimum;
         }
         public bool CanValidate(User user) => GetPermisos(user).Select(p => p.Name).Intersect(Permiso.CanValidate).Count() > 0;
         IList<User> GetUsers(Permiso permiso)
         {
-            int[] ids = PermisosUsuarios.ToList().Where(p => p.IsActive && p.PermisoId == permiso.Id).Select(p => p.UserId).ToArray();
-            return Users.Where(p => ids.Contains(p.Id)).ToArray();
+            int[] ids = PermisosUsuarios.IncludeAll().ToList().Where(p => p.IsActive && p.PermisoId == permiso.Id).Select(p => p.UserId).ToArray();
+            return Users.IncludeAll().ToList().Where(p => ids.Contains(p.Id)).ToArray();
         }
 
         public bool CanSetPermiso(User user)
