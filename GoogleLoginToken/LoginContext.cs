@@ -16,6 +16,7 @@ namespace GoogleLoginToken
         public LoginContext(DbContextOptions<LoginContext> options) : base(options) { }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<UserDetails> UserDetails { get; set; }
         public DbSet<Permiso> Permisos { get; set; }
         public DbSet<UserPermiso> PermisosUsuarios { get; set; }
 

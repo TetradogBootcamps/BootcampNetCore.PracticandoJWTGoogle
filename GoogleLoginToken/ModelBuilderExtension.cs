@@ -10,6 +10,8 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System.Reflection;
 using Gabriel.Cat.S.Blazor;
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace GoogleLoginToken
 {
     public static class ModelBuilderExtension
@@ -47,7 +49,7 @@ namespace GoogleLoginToken
         {
             bool encontrado;
             Type arrayType;
-            string nombrePropiedad,nombrePropiedadAux;
+            string nombrePropiedad, nombrePropiedadAux;
             IList<PropiedadTipo> propiedadesProperty;
             IList<PropiedadTipo> propiedades = typeof(TEntity).GetPropiedadesTipos();
 
@@ -56,138 +58,166 @@ namespace GoogleLoginToken
                 DicRelations.Add(assemblyQualifiedName, new TwoKeysList<string, string, bool>());
             for (int i = 0; i < propiedades.Count; i++)
             {
-
-                if (propiedades[i].Uso.HasFlag(UsoPropiedad.Set))
+                try
                 {
-
-                    if (propiedades[i].Tipo.ImplementInterficie(typeof(ICollection<>)))
+                    if (propiedades[i].Uso.HasFlag(UsoPropiedad.Set))
                     {
-                        arrayType = propiedades[i].Tipo.GetGenericArguments()[0];
-                        if (arrayType.IsClass && !arrayType.AssemblyQualifiedName.Contains(nameof(System)))
+
+                        if (propiedades[i].Tipo.ImplementInterficie(typeof(ICollection<>)))
+                        {
+                            arrayType = propiedades[i].Tipo.GetGenericArguments()[0];
+                            if (arrayType.IsClass && !arrayType.AssemblyQualifiedName.Contains(nameof(System)))
+                            {
+
+                                propiedadesProperty = arrayType.GetPropiedadesTipos();
+                                //n-1
+                                //n-n -> siempre será n-1 ya que se usa un tipo por medio
+                                encontrado = false;
+                                for (int j = 0; j < propiedadesProperty.Count && !encontrado; j++)
+                                {
+
+                                    encontrado = propiedadesProperty[j].Tipo.Equals(tipoEntity);
+                                    if (encontrado)
+                                    {
+                                        nombrePropiedad = propiedades[i].GetNombrePropiedadDestino();
+                                        if (String.IsNullOrEmpty(nombrePropiedad))
+                                        {
+                                            nombrePropiedad = propiedadesProperty[j].Nombre;
+                                        }
+                                        if (!nombrePropiedad.Contains(RelationNN))
+                                        {
+                                            if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedades[i].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
+                                            {
+                                                modelBuilder.Entity<TEntity>().HasMany(propiedades[i].Nombre).WithOne(nombrePropiedad);
+                                                DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedades[i].Tipo.Name}.{nombrePropiedad}", true);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            nombrePropiedad = nombrePropiedad.Substring(0, nombrePropiedad.Length - RelationNN.Length);
+                                            nombrePropiedadAux = propiedades[i].GetNombrePropiedadDestino(false);
+                                            if (!NotContainsKey(nombrePropiedad, nombrePropiedadAux, assemblyQualifiedName))
+                                            {
+                                                modelBuilder.Entity<TEntity>().HasMany(nombrePropiedad).WithMany(nombrePropiedadAux);
+                                                DicRelations[assemblyQualifiedName].Add(nombrePropiedad, nombrePropiedadAux, true);
+
+                                            }
+
+                                        }
+
+                                    }
+                                }
+
+                            }
+
+                        }
+                        else if (propiedades[i].Tipo.IsClass && !propiedades[i].Tipo.AssemblyQualifiedName.Contains(nameof(System)))
                         {
 
-                            propiedadesProperty = arrayType.GetPropiedadesTipos();
-                            //n-1
-                            //n-n -> siempre será n-1 ya que se usa un tipo por medio
+                            propiedadesProperty = propiedades[i].Tipo.GetPropiedadesTipos();
+                            //1-n
+                            //1-1
                             encontrado = false;
                             for (int j = 0; j < propiedadesProperty.Count && !encontrado; j++)
                             {
-
-                                encontrado = propiedadesProperty[j].Tipo.Equals(tipoEntity);
-                                if (encontrado)
+                                if ((!propiedadesProperty[j].Tipo.ImplementInterficie(typeof(ICollection<>)) && !propiedadesProperty[j].Tipo.AssemblyQualifiedName.Contains(nameof(System))) || (propiedadesProperty[j].Tipo.ImplementInterficie(typeof(ICollection<>)) && !propiedadesProperty[j].Tipo.GetGenericArguments()[0].AssemblyQualifiedName.Contains(nameof(System))))
                                 {
                                     nombrePropiedad = propiedades[i].GetNombrePropiedadDestino();
                                     if (String.IsNullOrEmpty(nombrePropiedad))
                                     {
                                         nombrePropiedad = propiedadesProperty[j].Nombre;
                                     }
-                                    if (!nombrePropiedad.Contains(RelationNN))
+                                    if (nombrePropiedad.Contains(RelationNN))
                                     {
-                                        if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedades[i].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
+                                        encontrado = true;
+                                        if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
                                         {
-                                            modelBuilder.Entity<TEntity>().HasMany(propiedades[i].Nombre).WithOne(nombrePropiedad);
-                                            DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedades[i].Tipo.Name}.{nombrePropiedad}", true);
+                                            modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithOne( propiedadesProperty[j].Nombre).HasForeignKey(propiedadesProperty[j].Tipo, GetForeingKeyName(propiedadesProperty[j]));
+                                            DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", true);
                                         }
                                     }
-                                    else
+                                    else if (!Equals(nombrePropiedad, ID))
                                     {
-                                        nombrePropiedad = nombrePropiedad.Substring(0, nombrePropiedad.Length - RelationNN.Length);
-                                        nombrePropiedadAux = propiedades[i].GetNombrePropiedadDestino(false);
-                                        if (!NotContainsKey(nombrePropiedad, nombrePropiedadAux,assemblyQualifiedName))
+                                        if (propiedadesProperty[j].Tipo.IsGenericType)
                                         {
-                                            modelBuilder.Entity<TEntity>().HasMany(nombrePropiedad).WithMany(nombrePropiedadAux);
-                                            DicRelations[assemblyQualifiedName].Add(nombrePropiedad, nombrePropiedadAux, true);
 
-                                        }
-                                        
-                                    }
-
-                                }
-                            }
-
-                        }
-
-                    }
-                    else if (propiedades[i].Tipo.IsClass && !propiedades[i].Tipo.AssemblyQualifiedName.Contains(nameof(System)))
-                    {
-
-                        propiedadesProperty = propiedades[i].Tipo.GetPropiedadesTipos();
-                        //1-n
-                        //1-1
-                        encontrado = false;
-                        for (int j = 0; j < propiedadesProperty.Count && !encontrado; j++)
-                        {
-                            if ((!propiedadesProperty[j].Tipo.ImplementInterficie(typeof(ICollection<>)) && !propiedadesProperty[j].Tipo.AssemblyQualifiedName.Contains(nameof(System))) || (propiedadesProperty[j].Tipo.ImplementInterficie(typeof(ICollection<>)) && !propiedadesProperty[j].Tipo.GetGenericArguments()[0].AssemblyQualifiedName.Contains(nameof(System))))
-                            {
-                                nombrePropiedad = propiedades[i].GetNombrePropiedadDestino();
-                                if (String.IsNullOrEmpty(nombrePropiedad))
-                                {
-                                    nombrePropiedad = propiedadesProperty[j].Nombre;
-                                }
-
-                                if (!Equals(nombrePropiedad, ID))
-                                {
-                                    if (propiedadesProperty[j].Tipo.IsGenericType)
-                                    {
-
-                                        //1-n
-                                        encontrado = propiedadesProperty[j].Tipo.GetGenericArguments()[0].Equals(tipoEntity);
-                                        if (encontrado)
-                                        {
-                                            if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
+                                            //1-n
+                                            encontrado = propiedadesProperty[j].Tipo.GetGenericArguments()[0].Equals(tipoEntity);
+                                            if (encontrado)
                                             {
-                                                modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithMany(nombrePropiedad);
-                                                DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", true);
+                                                if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
+                                                {
+                                                    modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithMany(nombrePropiedad);
+                                                    DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", true);
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            //1-1
+                                            encontrado = propiedadesProperty[j].Tipo.Equals(tipoEntity);
+                                            if (encontrado)
+                                            {
+                                                if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
+                                                {
+                                                    modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithOne(nombrePropiedad);
+                                                    DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", true);
+                                                }
+
                                             }
                                         }
                                     }
                                     else
                                     {
-                                        //1-1
-                                        encontrado = propiedadesProperty[j].Tipo.Equals(tipoEntity);
-                                        if (encontrado)
-                                        {
-                                            if (NotContainsKey($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", assemblyQualifiedName))
-                                            {
-                                                modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithOne(nombrePropiedad);
-                                                DicRelations[assemblyQualifiedName].Add($"{tipoEntity.Name}.{propiedades[i].Nombre}", $"{propiedadesProperty[j].Tipo.Name}.{nombrePropiedad}", true);
-                                            }
+                                        encontrado = true;
 
-                                        }
+                                        modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithMany().HasForeignKey(propiedades[i].Nombre + nombrePropiedad);
                                     }
+
+
+
                                 }
-                                else
-                                {
-                                    encontrado = true;
-
-                                    modelBuilder.Entity<TEntity>().HasOne(propiedades[i].Nombre).WithMany().HasForeignKey(propiedades[i].Nombre + nombrePropiedad);
-                                }
-
-
-
                             }
-                        }
 
+                        }
                     }
                 }
+                catch { }
 
             }
         }
+
+        private static string[] GetForeingKeyName(PropiedadTipo propiedadTipo)
+        {
+            string name;
+            ForeignKeyAttribute attrForingKey = propiedadTipo.Atributos.Where(a => a is ForeignKeyAttribute).FirstOrDefault() as ForeignKeyAttribute;
+            if (Equals(attrForingKey, default(ForeignKeyAttribute)))
+                name = propiedadTipo.Nombre + ID;
+            else name = attrForingKey.Name;
+
+            return new string[]{ name};
+        }
+
         static bool NotContainsKey(string key1, string key2, string bdName)
         {
             return !DicRelations[bdName].ContainsKey(new TwoKeys<string, string>(key1, key2)) &&
                 !DicRelations[bdName].ContainsKey(new TwoKeys<string, string>(key2, key1));
         }
 
-        static string GetNombrePropiedadDestino(this PropiedadTipo propiedadTipo,bool cambiarNN=true)
+        static string GetNombrePropiedadDestino(this PropiedadTipo propiedadTipo, bool cambiarNN = true)
         {
             string name = String.Empty;
             Type tipo = propiedadTipo.Tipo.GetTipo();
             IList<PropiedadTipo> propiedadesTipo = tipo.GetPropiedadesTipos();
-            if(propiedadTipo.Nombre==nameof(UserPermiso.Granted) && false)
+            Attribute attributeForeingKey = propiedadTipo.Atributos.Where(p => p is ForeignKeyAttribute).FirstOrDefault();
+            if (propiedadTipo.Nombre == nameof(UserPermiso.Granted) && false)
                 System.Diagnostics.Debugger.Break();
+            if (!Equals(attributeForeingKey, default(Attribute)))
+            {
+                name = ((ForeignKeyAttribute)attributeForeingKey).Name;
+            }
             //si contiene el nombre algo del tipo es 1-1 o 1-n
-            if (!tipo.Name.Contains(propiedadTipo.Nombre))
+            else if (!tipo.Name.Contains(propiedadTipo.Nombre))
             {   //sino puede ser que use el nombre de la propiedad en la clase //tener en cuenta un atributo para ponerle nombre 
                 name = propiedadesTipo.Where(
                     p =>
@@ -208,11 +238,17 @@ namespace GoogleLoginToken
             }
             try
             {
-                if (tipo.Name.Contains(name) && cambiarNN)
+                if (!string.IsNullOrEmpty(name) && tipo.Name.Contains(name) && cambiarNN)
                 {
                     //n-n
                     name = propiedadesTipo.Where(p => !p.Tipo.GetTipo().FullName.Contains(nameof(System)) && tipo.Name.Contains(name) && p.Tipo.Name != name).Select(p => p.Nombre).FirstOrDefault();
+                    if (string.IsNullOrEmpty(name))
+                    {
+                        name = ID;
+                    }
+
                     name += RelationNN;
+
                 }
             }
             catch

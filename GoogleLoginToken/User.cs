@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
@@ -33,6 +34,10 @@ namespace GoogleLoginToken
 
 
         public int Id { get; set; }
+
+        [ForeignKey(nameof(GoogleLoginToken.UserDetails.User))]
+        public UserDetails UserDetails { get; set; }
+
         [Required]
         public string IdExterno { get; set; }
         [Required]
@@ -45,8 +50,8 @@ namespace GoogleLoginToken
         public User Validador { get; set; }
         public IList<User> ValidadorList { get; set; }
         public bool IsValidated => ValidadorId.HasValue;
-        [JsonIgnore]
-        public ICollection<UserPermiso> PermisoList { get; set; }
+        //[JsonIgnore]
+        //public ICollection<UserPermiso> PermisoList { get; set; }
         //[JsonIgnore]
         //public ICollection<UserPermiso> GrantedList { get; set; }
         //[JsonIgnore]

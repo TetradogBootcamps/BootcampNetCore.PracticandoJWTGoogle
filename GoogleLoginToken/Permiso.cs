@@ -22,7 +22,7 @@ namespace GoogleLoginToken
         public int? Minimum { get; set; }
 
         public int? Maximum { get; set; }
-        public ICollection<UserPermiso> UserList { get; set; }
+        //public ICollection<UserPermiso> UserList { get; set; }
 
         public override string ToString()
         {
