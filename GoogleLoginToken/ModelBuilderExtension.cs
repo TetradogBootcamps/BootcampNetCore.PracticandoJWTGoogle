@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System.Reflection;
 using Gabriel.Cat.S.Blazor;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace GoogleLoginToken
 {
@@ -287,8 +288,20 @@ namespace GoogleLoginToken
         }
         public static void ConfigureEntities(this ModelBuilder modelBuilder, string assemblyQualifiedName, params Type[] tiposDbContext)
         {
+            string[] properties;
+            IMutableEntityType metadata;
             for (int i = 0; i < tiposDbContext.Length; i++)
+            {
                 ConfigureEntity(modelBuilder, tiposDbContext[i], assemblyQualifiedName);
+            }
+            for (int i = 0; i < tiposDbContext.Length; i++)
+            {
+                metadata = modelBuilder.Entity(tiposDbContext[i].FullName).Metadata;
+                properties = metadata.GetDeclaredProperties().Select(p => p.Name).Except(tiposDbContext[i].GetPropiedadesTipos().Select(p => p.Nombre)).ToArray();
+                //reviso los modelos para que no tengan campos nuevos
+                foreach (string propiedadAQuitar in properties)
+                    metadata.RemoveProperty(propiedadAQuitar);
+            }
             DicRelations.Remove(assemblyQualifiedName);
         }
 
