@@ -55,7 +55,7 @@ namespace GoogleLoginToken
 
                 for (int i = 0; i < propiedadTipos.Count; i++)
                 {
-                    if (!propiedadTipos[i].Tipo.FullName.Contains(nameof(System)) && !dicTiposCargados.ContainsKey(propiedadTipos[i].Tipo.FullName))
+                    if ( ( !propiedadTipos[i].Tipo.FullName.Contains(nameof(System)) || propiedadTipos[i].Tipo.ImplementInterficie(typeof(ICollection<>)) && !propiedadTipos[i].Tipo.GetGenericArguments()[0].FullName.Contains(nameof(System)) ) && !dicTiposCargados.ContainsKey(propiedadTipos[i].Tipo.FullName))
                     {
                         dicTiposCargados.Add(propiedadTipos[i].Tipo.FullName, propiedadTipos[i].Tipo.FullName);
                         query = IIncludeAll(query, propiedadTipos[i].Tipo,propiedadTipos[i].Nombre, dicTiposCargados);
